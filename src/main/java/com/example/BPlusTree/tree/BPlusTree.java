@@ -8,8 +8,8 @@ public class BPlusTree {
     private final int order;
 
     public BPlusTree(int order) {
-        if (order < 2) {
-            throw new IllegalArgumentException("Order must be at least 2");
+        if (order < 3) {
+            throw new IllegalArgumentException("Order must be at least 3");
         }
         this.order = order;
         this.root = new LeafNode(order);
@@ -17,6 +17,10 @@ public class BPlusTree {
 
     public Node getRoot() {
         return root;
+    }
+
+    public int getOrder() {
+        return order;
     }
 
     private LeafNode findLeafNode(int key) {

@@ -64,6 +64,8 @@ public class JavaFXApp extends Application {
         primaryStage.setScene(scene);
         primaryStage.setMaximized(true);
         primaryStage.show();
+
+        drawTree();
     }
 
     private VBox createControlPanel() {
@@ -114,8 +116,8 @@ public class JavaFXApp extends Application {
     private void createNewTree() {
         try {
             int order = Integer.parseInt(orderInput.getText());
-            if (order < 2) {
-                showAlert("Invalid Order", "Order must be at least 2");
+            if (order < 3) {
+                showAlert("Invalid Order", "Order must be at least 3");
                 return;
             }
             tree = new BPlusTree(order);
@@ -143,8 +145,9 @@ public class JavaFXApp extends Application {
 
     private void bulkInsert(String input) {
         try {
-            String[] parts = input.split(",");
+            String[] parts = input.split(",+");
             for (String part : parts) {
+                if (part.trim().isEmpty()) continue;
                 int key = Integer.parseInt(part.trim());
                 tree.insert(key, -1);
                 log("Inserted key: " + key);
@@ -158,19 +161,11 @@ public class JavaFXApp extends Application {
     }
 
     private void clearTree() {
-        try {
-            int order = Integer.parseInt(orderInput.getText());
-            tree = new BPlusTree(order);
-            logArea.clear();
-            log("Tree cleared");
-            drawTree();
-        } catch (NumberFormatException e) {
-            tree = new BPlusTree(3);
-            orderInput.setText("3");
-            logArea.clear();
-            log("Tree cleared with default order 3");
-            drawTree();
-        }
+        int order = tree.getOrder();
+        tree = new BPlusTree(order);
+        logArea.clear();
+        log("Tree cleared");
+        drawTree();
     }
 
     private void drawTree() {
@@ -182,6 +177,9 @@ public class JavaFXApp extends Application {
         leafPositions.clear();
 
         if (tree.getRoot() != null) {
+            if (tree.getRoot().getKeys().isEmpty()) {
+                return;
+            }
             drawNode(gc, tree.getRoot(), canvas.getWidth() / 2, 50, canvas.getWidth() - 100);
         }
 
