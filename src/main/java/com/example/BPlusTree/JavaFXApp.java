@@ -1,6 +1,8 @@
 package com.example.BPlusTree;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.example.BPlusTree.tree.BPlusTree;
@@ -84,16 +86,19 @@ public class JavaFXApp extends Application {
         orderInput.setPrefWidth(60);
         Button createButton = new Button("Create New Tree");
         createButton.setOnAction(e -> createNewTree());
+        orderInput.setOnAction(e -> createButton.fire());
         orderBox.getChildren().addAll(orderLabel, orderInput, createButton);
 
         HBox insertBox = new HBox(10);
         insertBox.setAlignment(Pos.CENTER_LEFT);
         Label keyLabel = new Label("Key:");
         keyInput = new TextField();
+        keyInput.setPromptText("Enter key");
         keyInput.setPrefWidth(80);
         Button insertButton = new Button("Insert");
         insertButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
         insertButton.setOnAction(e -> insertKey());
+        keyInput.setOnAction(e -> insertButton.fire());
         insertBox.getChildren().addAll(keyLabel, keyInput, insertButton);
 
         HBox bulkBox = new HBox(10);
@@ -104,6 +109,7 @@ public class JavaFXApp extends Application {
         bulkInput.setPrefWidth(200);
         Button bulkButton = new Button("Insert Multiple");
         bulkButton.setOnAction(e -> bulkInsert(bulkInput.getText()));
+        bulkInput.setOnAction(e -> bulkButton.fire());
         Button clearButton = new Button("Clear Tree");
         clearButton.setStyle("-fx-background-color: #f44336; -fx-text-fill: white;");
         clearButton.setOnAction(e -> clearTree());
@@ -132,9 +138,14 @@ public class JavaFXApp extends Application {
     private void insertKey() {
         try {
             int key = Integer.parseInt(keyInput.getText());
-            tree.insert(key, -1);
-            log("Inserted key: " + key);
-            drawTree();
+            boolean success = tree.insert(key, -1);
+            if (success) {
+                log("Inserted key: " + key);
+                drawTree();
+            }
+            else {
+                showAlert("Invalid Input", key + " already exists");
+            }
             keyInput.clear();
         } catch (NumberFormatException e) {
             showAlert("Invalid Input", "Please enter valid number for key");
@@ -145,13 +156,30 @@ public class JavaFXApp extends Application {
 
     private void bulkInsert(String input) {
         try {
-            String[] parts = input.split(",+");
-            for (String part : parts) {
-                if (part.trim().isEmpty()) continue;
-                int key = Integer.parseInt(part.trim());
-                tree.insert(key, -1);
-                log("Inserted key: " + key);
+            String[] strings = input.split(",+");
+            List<Integer> keys = new ArrayList<>();
+
+            for (String s : strings) {
+                String trimmed = s.trim();
+                if (trimmed.isEmpty()) continue;
+                keys.add(Integer.parseInt(trimmed));
             }
+
+            if (keys.isEmpty()) {
+                showAlert("Invalid Input", "No valid keys to insert");
+                return;
+            }
+
+            for (int key : keys) {
+                boolean success = tree.insert(key, -1);
+                if (success) {
+                    log("Inserted key: " + key);
+                }
+                else {
+                    log(key + " exists and have been skipped");
+                }
+            }
+
             drawTree();
         } catch (NumberFormatException e) {
             showAlert("Invalid Input", "Please enter comma-separated numbers");

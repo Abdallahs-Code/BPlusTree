@@ -1,11 +1,13 @@
 package com.example.BPlusTree.tree;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class BPlusTree {
     private Node root;
     private final int order;
+    private HashSet<Integer> ssns;
 
     public BPlusTree(int order) {
         if (order < 3) {
@@ -13,6 +15,7 @@ public class BPlusTree {
         }
         this.order = order;
         this.root = new LeafNode(order);
+        this.ssns = new HashSet<>();
     }
 
     public Node getRoot() {
@@ -121,9 +124,12 @@ public class BPlusTree {
         }
     }
 
-    public void insert(int key, int recordPointer) {
+    public boolean insert(int key, int recordPointer) {
+        if (ssns.contains(key)) return false;
         LeafNode leaf = findLeafNode(key);
         leaf.insertKey(key, recordPointer);
         handleOverflow(leaf);
+        ssns.add(key);
+        return true;
     }
 }
