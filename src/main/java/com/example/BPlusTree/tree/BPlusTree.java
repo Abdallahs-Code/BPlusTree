@@ -90,7 +90,12 @@ public class BPlusTree {
         leaf.getRecordPointers().subList(splitIndex, leaf.getRecordPointers().size()).clear();
 
         rightLeaf.setNext(leaf.getNext());
+        rightLeaf.setPrev(leaf);
         leaf.setNext(rightLeaf);
+
+        if (rightLeaf.getNext() != null) {
+            rightLeaf.getNext().setPrev(rightLeaf);
+        }
 
         int promotedKey = rightLeaf.getKeys().get(0);
         Node parent = leaf.getParent();
@@ -124,12 +129,106 @@ public class BPlusTree {
         }
     }
 
+    private void handleDeletion(Node node) {
+        if (node.isLeaf()) {
+            rebalanceLeaf((LeafNode) node);
+        } else {
+            //TODO: handle internal node underflow later
+        }
+    }
+
+    
+ 
+    // private void shrinkRootIfNeeded(){
+    //     if(root instanceof  InternalNode mainRoot && mainRoot.getPointers().size() == 1){
+    //         root = mainRoot.getPointers().get(0);
+    //         root.setParent(null);
+    //     }
+    // }
+
+   private void rebalanceLeaf(LeafNode leaf) {
+        int minKeys = (int) Math.ceil(order / 2.0);
+        if (leaf.getKeys().size() >= minKeys) return;
+
+        InternalNode parent = (InternalNode) leaf.getParent();
+        LeafNode left = leaf.getPrev();
+        LeafNode right = leaf.getNext();
+        int index = parent.getPointers().indexOf(leaf);
+
+        if (canBorrow(left, parent)) {
+            borrowFromLeft(leaf, left, parent, index);
+            return;
+        }
+
+        if (canBorrow(right, parent)) {
+            borrowFromRight(leaf, right, parent, index);
+            return;
+        }
+
+        mergeLeaf(leaf, left, right, parent, index);
+        handleDeletion(parent);
+    }
+
+    private boolean canBorrow(LeafNode sibling, InternalNode parent) {
+        return sibling != null && sibling.getParent() == parent &&
+                sibling.getKeys().size() > Math.ceil(order / 2.0);
+    }
+
+    private void borrowFromLeft(LeafNode leaf, LeafNode left, InternalNode parent, int index) {
+        int borrowedKey = left.getKeys().remove(left.getKeys().size() - 1);
+        int borrowedPtr = left.getRecordPointers().remove(left.getRecordPointers().size() - 1);
+
+        leaf.getKeys().add(0, borrowedKey);
+        leaf.getRecordPointers().add(0, borrowedPtr);
+
+        parent.getKeys().set(index - 1, leaf.getKeys().get(0));
+    }
+
+    private void borrowFromRight(LeafNode leaf, LeafNode right, InternalNode parent, int index) {
+        int borrowedKey = right.getKeys().remove(0);
+        int borrowedPtr = right.getRecordPointers().remove(0);
+
+        leaf.getKeys().add(borrowedKey);
+        leaf.getRecordPointers().add(borrowedPtr);
+
+        parent.getKeys().set(index, right.getKeys().get(0));
+    }
+
+    private void mergeLeaf(LeafNode leaf, LeafNode left, LeafNode right, InternalNode parent, int index) {
+        if (left != null && left.getParent() == parent) {
+            left.getKeys().addAll(leaf.getKeys());
+            left.getRecordPointers().addAll(leaf.getRecordPointers());
+            left.setNext(leaf.getNext());
+            if (leaf.getNext() != null) leaf.getNext().setPrev(left);
+
+            parent.getPointers().remove(leaf);
+            parent.getKeys().remove(index - 1);
+        } else if (right != null && right.getParent() == parent) {
+            leaf.getKeys().addAll(right.getKeys());
+            leaf.getRecordPointers().addAll(right.getRecordPointers());
+            leaf.setNext(right.getNext());
+            if (right.getNext() != null) right.getNext().setPrev(leaf);
+
+            parent.getPointers().remove(right);
+            parent.getKeys().remove(index);
+        }
+    }
+
     public boolean insert(int key, int recordPointer) {
         if (ssns.contains(key)) return false;
         LeafNode leaf = findLeafNode(key);
         leaf.insertKey(key, recordPointer);
         handleOverflow(leaf);
         ssns.add(key);
+        return true;
+    }
+
+    public boolean delete(int key) {
+        LeafNode leaf = findLeafNode(key);
+        if (!ssns.contains(key)) return false;
+        leaf.removeKey(key);
+        ssns.remove(key);
+        handleDeletion(leaf);
         return true;
     }
 }
