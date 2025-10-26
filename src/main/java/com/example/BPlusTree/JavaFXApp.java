@@ -36,6 +36,7 @@ public class JavaFXApp extends Application {
     private Canvas canvas;
     private TextArea logArea;
     private TextField keyInput;
+    private TextField deleteInput;
     private TextField orderInput;
     private final Map<LeafNode, double[]> leafPositions = new HashMap<>();
 
@@ -100,6 +101,18 @@ public class JavaFXApp extends Application {
         insertButton.setOnAction(e -> insertKey());
         keyInput.setOnAction(e -> insertButton.fire());
         insertBox.getChildren().addAll(keyLabel, keyInput, insertButton);
+        
+        HBox deleteBox = new HBox(10);
+        deleteBox.setAlignment(Pos.CENTER_LEFT);
+        Label deleteLabel = new Label("Delete Key:");
+        deleteInput = new TextField();
+        deleteInput.setPromptText("Enter key");
+        deleteInput.setPrefWidth(80);
+        Button deleteButton = new Button("Delete");
+        deleteButton.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
+        deleteButton.setOnAction(e -> deleteKey(deleteInput.getText()));
+        deleteInput.setOnAction(e -> deleteButton.fire());
+        deleteBox.getChildren().addAll(deleteLabel, deleteInput, deleteButton);
 
         HBox bulkBox = new HBox(10);
         bulkBox.setAlignment(Pos.CENTER_LEFT);
@@ -115,7 +128,7 @@ public class JavaFXApp extends Application {
         clearButton.setOnAction(e -> clearTree());
         bulkBox.getChildren().addAll(bulkLabel, bulkInput, bulkButton, clearButton);
 
-        panel.getChildren().addAll(titleLabel, orderBox, insertBox, bulkBox);
+        panel.getChildren().addAll(titleLabel, orderBox, insertBox,deleteBox, bulkBox);
         return panel;
     }
 
@@ -153,6 +166,30 @@ public class JavaFXApp extends Application {
             showAlert("Error", "Failed to insert: " + e.getMessage());
         }
     }
+    private void deleteKey(String input) {
+        try {
+            if (input == null || input.trim().isEmpty()) {
+                showAlert("Invalid Input", "Please enter a key to delete");
+                return;
+            }
+
+            int key = Integer.parseInt(input.trim());
+            boolean success = tree.delete(key);
+
+            if (success) {
+                log("Deleted key: " + key);
+                drawTree();
+            } else {
+                showAlert("Key Not Found", "Key " + key + " does not exist in the tree.");
+            }
+            deleteInput.clear();	
+        } catch (NumberFormatException e) {
+            showAlert("Invalid Input", "Please enter a valid number for key");
+        } catch (Exception e) {
+            showAlert("Error", "Failed to delete: " + e.getMessage());
+        }
+    }
+
 
     private void bulkInsert(String input) {
         try {
