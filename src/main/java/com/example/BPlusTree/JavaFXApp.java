@@ -113,7 +113,7 @@ public class JavaFXApp extends Application {
         insertButton.setOnAction(e -> insertKey());
         keyInput.setOnAction(e -> insertButton.fire());
         insertBox.getChildren().addAll(keyLabel, keyInput, insertButton);
-        
+
         HBox deleteBox = new HBox(10);
         deleteBox.setAlignment(Pos.CENTER_LEFT);
         Label deleteLabel = new Label("Delete Key:");
@@ -142,13 +142,17 @@ public class JavaFXApp extends Application {
 
         panel.getChildren().addAll(titleLabel, orderBox, insertBox, bulkBox);
 
+
         HBox loadBox = new HBox(10);
         loadBox.setAlignment(Pos.CENTER_LEFT);
         Button loadCsvButton = new Button("Load CSV and Build Index");
         loadCsvButton.setOnAction(e -> loadCsvData());
-        loadBox.getChildren().addAll(loadCsvButton);
+        Button insertRecords = new Button("Insert Records");
+        insertRecords.setOnAction(e -> Insertions());
+        Button deleteRecords = new Button("Insert Records");
+        insertRecords.setOnAction(e ->Deletions());
+        loadBox.getChildren().addAll(loadCsvButton, insertRecords,deleteRecords);
         panel.getChildren().add(loadBox);
-
 
         return panel;
     }
@@ -203,7 +207,7 @@ public class JavaFXApp extends Application {
             } else {
                 showAlert("Key Not Found", "Key " + key + " does not exist in the tree.");
             }
-            deleteInput.clear();	
+            deleteInput.clear();
         } catch (NumberFormatException e) {
             showAlert("Invalid Input", "Please enter a valid number for key");
         } catch (Exception e) {
@@ -275,6 +279,71 @@ public class JavaFXApp extends Application {
     }
 
 
+    private void Insertions(){
+        try {
+            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
+            loadedRecords = CSVLoader.loadRecords(csvPath);
+            log("Loaded " + loadedRecords.size() + " records from CSV.");
+
+            int[] recordNumbers = {27,14,22};
+
+            for (int recordNumber : recordNumbers) {
+                if (recordNumber >= loadedRecords.size()) {
+                    log("⚠️ Skipping index " + recordNumber + " (only " + loadedRecords.size() + " records loaded)");
+                    continue;
+                }
+                Record r = loadedRecords.get(recordNumber);
+                int pointer = fileSystem.insertRecord(r);
+                String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+                int key = Integer.parseInt(numericPart);
+                tree.insert(key, pointer);
+                log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+            }
+
+
+            fileSystem.printBlocks();
+            drawTree();
+        } catch (IOException e) {
+            showAlert("File Error", "Could not read CSV: " + e.getMessage());
+        } catch (Exception e) {
+            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+        }
+
+    }
+
+
+    private void Deletions(){
+        try {
+            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
+            loadedRecords = CSVLoader.loadRecords(csvPath);
+            log("Loaded " + loadedRecords.size() + " records from CSV.");
+
+            int[] recordNumbers = {11,6,3};
+
+            for (int recordNumber : recordNumbers) {
+                if (recordNumber >= loadedRecords.size()) {
+                    log("⚠️ Skipping index " + recordNumber + " (only " + loadedRecords.size() + " records loaded)");
+                    continue;
+                }
+                Record r = loadedRecords.get(recordNumber);
+                int pointer = fileSystem.insertRecord(r);
+                String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+                int key = Integer.parseInt(numericPart);
+                tree.delete(key);
+                log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+            }
+
+
+            fileSystem.printBlocks();
+            drawTree();
+        } catch (IOException e) {
+            showAlert("File Error", "Could not read CSV: " + e.getMessage());
+        } catch (Exception e) {
+            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+        }
+
+
+    }
 
 
     private void clearTree() {
@@ -309,9 +378,9 @@ public class JavaFXApp extends Application {
                 double[] start = leafPositions.get(leaf);
                 double[] end = leafPositions.get(next);
 
-                double startX = start[0] + start[2] / 2; 
+                double startX = start[0] + start[2] / 2;
                 double startY = start[1];
-                double endX = end[0] - end[2] / 2;       
+                double endX = end[0] - end[2] / 2;
                 double endY = end[1];
 
                 gc.setStroke(Color.RED);
@@ -348,7 +417,7 @@ public class JavaFXApp extends Application {
             gc.fillText(String.valueOf(node.getKeys().get(i)), keyX, y + nodeHeight / 2 + 5);
             if (i > 0) {
                 gc.strokeLine(x - nodeWidth / 2 + keyWidth * i, y,
-                            x - nodeWidth / 2 + keyWidth * i, y + nodeHeight);
+                        x - nodeWidth / 2 + keyWidth * i, y + nodeHeight);
             }
         }
 
@@ -367,11 +436,11 @@ public class JavaFXApp extends Application {
 
                 double pointerX;
                 if (i == 0) {
-                    pointerX = x - nodeWidth / 2; 
+                    pointerX = x - nodeWidth / 2;
                 } else if (i == internal.getKeys().size()) {
-                    pointerX = x + nodeWidth / 2; 
+                    pointerX = x + nodeWidth / 2;
                 } else {
-                    pointerX = x - nodeWidth / 2 + i * keyWidth; 
+                    pointerX = x - nodeWidth / 2 + i * keyWidth;
                 }
 
                 gc.setStroke(Color.DARKGRAY);
