@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.example.BPlusTree.Storage.Block;
 import com.example.BPlusTree.tree.BPlusTree;
 import com.example.BPlusTree.tree.InternalNode;
 import com.example.BPlusTree.tree.LeafNode;
@@ -14,7 +15,6 @@ import com.example.BPlusTree.tree.Node;
 import com.example.BPlusTree.Storage.Record;
 import com.example.BPlusTree.Storage.FileSystem;
 import com.example.BPlusTree.Storage.CSVLoader;
-import com.example.BPlusTree.Storage.Block;
 
 
 import javafx.application.Application;
@@ -150,11 +150,74 @@ public class JavaFXApp extends Application {
         Button insertRecords = new Button("Insert Records");
         insertRecords.setOnAction(e -> Insertions());
         Button deleteRecords = new Button("Delete Records");
-        insertRecords.setOnAction(e ->Deletions());
-        loadBox.getChildren().addAll(loadCsvButton, insertRecords,deleteRecords);
+        deleteRecords.setOnAction(e ->Deletions());
+
+        TextField ssnDeleteInput = new TextField();
+        ssnDeleteInput.setPromptText("Enter SSN");
+        ssnDeleteInput.setPrefWidth(250);
+        Button deleteBySSNButton = new Button("Delete by SSN");
+        deleteBySSNButton.setOnAction(e -> deleteRecordsBySSNUI(ssnDeleteInput.getText()));
+
+        TextField ssnInsertInput = new TextField();
+        ssnDeleteInput.setPromptText("Enter SSN");
+        ssnDeleteInput.setPrefWidth(250);
+        Button insertbySSNButton = new Button("Insert by Line Number in CSV");
+        insertbySSNButton.setOnAction(e -> insertRecordsByNumberUI(ssnInsertInput.getText()));
+
+
+
+        loadBox.getChildren().addAll(loadCsvButton, insertRecords, deleteRecords, ssnDeleteInput, deleteBySSNButton,ssnInsertInput,insertbySSNButton);
         panel.getChildren().add(loadBox);
 
+
+
         return panel;
+    }
+
+    private void insertRecordsByNumberUI(String text) {
+        int recordNumber  = Integer.parseInt(text);
+        Record r = this.loadedRecords.get(recordNumber-2); //fix -1 index problem for header
+        int pointer = fileSystem.insertRecord(r);
+        String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+        int key = Integer.parseInt(numericPart);
+        tree.insert(key, pointer);
+        log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+
+
+        fileSystem.printBlocks();
+        drawTree();
+    }
+
+    private void deleteRecordsBySSNUI(String input) {
+
+        log("Current FileSystem contents before deletion:");
+        int i =0;
+        for (Block b : fileSystem.getBlocks()) {
+            for (Record r : b.getRecords()) {
+                log("Block " + i +" contains SSN=" + r.getSSN());
+                i+=1;
+            }
+        }
+
+        try {
+            String ssn = input.trim();
+            // Delete from file system (mark deleted)
+            boolean deletedFromFile = fileSystem.deleteRecordsBySSN(ssn);
+            String numericPart = ssn.replaceAll("[^0-9]", "");
+            int key = Integer.parseInt(numericPart);
+
+            if (deletedFromFile) {
+                boolean deletedFromTree = tree.delete(key);
+                log("Deleted SSN=" + ssn + (deletedFromTree ? " (removed from tree)" : " (not found in tree)"));
+            } else {
+                log("SSN " + ssn + " not found in file system.");
+            }
+
+        fileSystem.printBlocks();
+        drawTree();
+    } catch (Exception e) {
+        showAlert("Error", "Failed to process CSV: " + e.getMessage());
+    }
     }
 
     private void createNewTree() {
@@ -282,17 +345,12 @@ public class JavaFXApp extends Application {
     private void Insertions(){
         try {
             String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
-            loadedRecords = CSVLoader.loadRecords(csvPath);
-            log("Loaded " + loadedRecords.size() + " records from CSV.");
 
-            int[] recordNumbers = {27,14,22};
 
-            for (int recordNumber : recordNumbers) {
-                if (recordNumber >= loadedRecords.size()) {
-                    log("⚠️ Skipping index " + recordNumber + " (only " + loadedRecords.size() + " records loaded)");
-                    continue;
-                }
-                Record r = loadedRecords.get(recordNumber);
+            int[] OriginalLineNumbers = {27,14,22};
+
+            for (int recordNumber : OriginalLineNumbers) {
+                Record r = this.loadedRecords.get(recordNumber-2); //fix -1 index problem for header
                 int pointer = fileSystem.insertRecord(r);
                 String numericPart = r.getSSN().replaceAll("[^0-9]", "");
                 int key = Integer.parseInt(numericPart);
@@ -300,11 +358,8 @@ public class JavaFXApp extends Application {
                 log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
             }
 
-
             fileSystem.printBlocks();
             drawTree();
-        } catch (IOException e) {
-            showAlert("File Error", "Could not read CSV: " + e.getMessage());
         } catch (Exception e) {
             showAlert("Error", "Failed to process CSV: " + e.getMessage());
         }
@@ -312,37 +367,29 @@ public class JavaFXApp extends Application {
     }
 
 
-    private void Deletions(){
+    private void Deletions() {
         try {
-            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
-            loadedRecords = CSVLoader.loadRecords(csvPath);
-            log("Loaded " + loadedRecords.size() + " records from CSV.");
-
             int[] recordNumbers = {11,6,3};
-
             for (int recordNumber : recordNumbers) {
-                if (recordNumber >= loadedRecords.size()) {
-                    log("⚠️ Skipping index " + recordNumber + " (only " + loadedRecords.size() + " records loaded)");
-                    continue;
-                }
-                Record r = loadedRecords.get(recordNumber);
-                int pointer = fileSystem.insertRecord(r);
-                String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+                Record r = loadedRecords.get(recordNumber - 2);
+                String ssn = r.getSSN();
+                // Delete from file system (mark deleted)
+                boolean deletedFromFile = fileSystem.deleteRecordsBySSN(ssn);
+                String numericPart = ssn.replaceAll("[^0-9]", "");
                 int key = Integer.parseInt(numericPart);
-                tree.delete(key);
-                log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+
+                if (deletedFromFile) {
+                    boolean deletedFromTree = tree.delete(key);
+                    log("Deleted SSN=" + ssn + (deletedFromTree ? " (removed from tree)" : " (not found in tree)"));
+                } else {
+                    log("SSN " + ssn + " not found in file system.");
+                }
             }
-
-
             fileSystem.printBlocks();
             drawTree();
-        } catch (IOException e) {
-            showAlert("File Error", "Could not read CSV: " + e.getMessage());
         } catch (Exception e) {
             showAlert("Error", "Failed to process CSV: " + e.getMessage());
         }
-
-
     }
 
 

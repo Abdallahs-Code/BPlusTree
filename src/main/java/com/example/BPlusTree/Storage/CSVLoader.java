@@ -11,6 +11,7 @@ public class CSVLoader {
 
         String line;
         boolean firstLine = true;
+
         while ((line = reader.readLine()) != null) {
             if (firstLine) {  // Skip header
                 firstLine = false;
@@ -39,6 +40,7 @@ public class CSVLoader {
                         Float.parseFloat(parts[8].trim()) // SALARY
                 );
                 records.add(r);
+
 
             } catch (Exception e) {
 
