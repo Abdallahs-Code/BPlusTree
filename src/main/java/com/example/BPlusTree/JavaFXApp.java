@@ -1,5 +1,6 @@
 package com.example.BPlusTree;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,6 +10,12 @@ import com.example.BPlusTree.tree.BPlusTree;
 import com.example.BPlusTree.tree.InternalNode;
 import com.example.BPlusTree.tree.LeafNode;
 import com.example.BPlusTree.tree.Node;
+
+import com.example.BPlusTree.Storage.Record;
+import com.example.BPlusTree.Storage.FileSystem;
+import com.example.BPlusTree.Storage.CSVLoader;
+import com.example.BPlusTree.Storage.Block;
+
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -32,12 +39,18 @@ import javafx.stage.Stage;
 
 public class JavaFXApp extends Application {
 
+
     private BPlusTree tree;
     private Canvas canvas;
     private TextArea logArea;
     private TextField keyInput;
+    private TextField deleteInput;
     private TextField orderInput;
     private final Map<LeafNode, double[]> leafPositions = new HashMap<>();
+    private FileSystem fileSystem = new FileSystem();
+    private List<Record> loadedRecords = new ArrayList<>();
+
+
 
     @Override
     public void start(Stage primaryStage) {
@@ -100,6 +113,18 @@ public class JavaFXApp extends Application {
         insertButton.setOnAction(e -> insertKey());
         keyInput.setOnAction(e -> insertButton.fire());
         insertBox.getChildren().addAll(keyLabel, keyInput, insertButton);
+        
+        HBox deleteBox = new HBox(10);
+        deleteBox.setAlignment(Pos.CENTER_LEFT);
+        Label deleteLabel = new Label("Delete Key:");
+        deleteInput = new TextField();
+        deleteInput.setPromptText("Enter key");
+        deleteInput.setPrefWidth(80);
+        Button deleteButton = new Button("Delete");
+        deleteButton.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
+        deleteButton.setOnAction(e -> deleteKey(deleteInput.getText()));
+        deleteInput.setOnAction(e -> deleteButton.fire());
+        deleteBox.getChildren().addAll(deleteLabel, deleteInput, deleteButton);
 
         HBox bulkBox = new HBox(10);
         bulkBox.setAlignment(Pos.CENTER_LEFT);
@@ -116,6 +141,15 @@ public class JavaFXApp extends Application {
         bulkBox.getChildren().addAll(bulkLabel, bulkInput, bulkButton, clearButton);
 
         panel.getChildren().addAll(titleLabel, orderBox, insertBox, bulkBox);
+
+        HBox loadBox = new HBox(10);
+        loadBox.setAlignment(Pos.CENTER_LEFT);
+        Button loadCsvButton = new Button("Load CSV and Build Index");
+        loadCsvButton.setOnAction(e -> loadCsvData());
+        loadBox.getChildren().addAll(loadCsvButton);
+        panel.getChildren().add(loadBox);
+
+
         return panel;
     }
 
@@ -153,6 +187,30 @@ public class JavaFXApp extends Application {
             showAlert("Error", "Failed to insert: " + e.getMessage());
         }
     }
+    private void deleteKey(String input) {
+        try {
+            if (input == null || input.trim().isEmpty()) {
+                showAlert("Invalid Input", "Please enter a key to delete");
+                return;
+            }
+
+            int key = Integer.parseInt(input.trim());
+            boolean success = tree.delete(key);
+
+            if (success) {
+                log("Deleted key: " + key);
+                drawTree();
+            } else {
+                showAlert("Key Not Found", "Key " + key + " does not exist in the tree.");
+            }
+            deleteInput.clear();	
+        } catch (NumberFormatException e) {
+            showAlert("Invalid Input", "Please enter a valid number for key");
+        } catch (Exception e) {
+            showAlert("Error", "Failed to delete: " + e.getMessage());
+        }
+    }
+
 
     private void bulkInsert(String input) {
         try {
@@ -186,7 +244,38 @@ public class JavaFXApp extends Application {
         } catch (Exception e) {
             showAlert("Error", "Failed to insert: " + e.getMessage());
         }
+
+
     }
+
+    private void loadCsvData() {
+        try {
+            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
+            loadedRecords = CSVLoader.loadRecords(csvPath);
+            log("Loaded " + loadedRecords.size() + " records from CSV.");
+
+            for (int i = 0; i < Math.min(10, loadedRecords.size()); i++) {
+                Record r = loadedRecords.get(i);
+                int pointer = fileSystem.insertRecord(r);
+
+                String numericPart = r.getSSN().replaceAll("[^0-9]", ""); // 3ashan el B+ tree integer
+                int key = Integer.parseInt(numericPart);
+                tree.insert(key, pointer);
+                log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+            }
+
+            fileSystem.printBlocks();
+            drawTree();
+
+        } catch (IOException e) {
+            showAlert("File Error", "Could not read CSV: " + e.getMessage());
+        } catch (Exception e) {
+            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+        }
+    }
+
+
+
 
     private void clearTree() {
         int order = tree.getOrder();
@@ -238,8 +327,10 @@ public class JavaFXApp extends Application {
     }
 
     private void drawNode(GraphicsContext gc, Node node, double x, double y, double totalWidth) {
-        final double nodeHeight = 50;
-        final double keyWidth = 40;
+
+        final double nodeHeight = 70;
+        final double keyWidth = 70;
+        gc.setFont(Font.font("Consolas", 20));
         final int keysCount = node.getKeys().size();
         final double nodeWidth = keyWidth * Math.max(keysCount, 1);
 
