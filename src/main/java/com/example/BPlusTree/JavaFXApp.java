@@ -125,13 +125,15 @@ public class JavaFXApp extends Application {
 
         panel.getChildren().addAll(titleLabel, orderBox, insertBox, bulkBox);
 
+
         HBox loadBox = new HBox(10);
         loadBox.setAlignment(Pos.CENTER_LEFT);
         Button loadCsvButton = new Button("Load CSV and Build Index");
         loadCsvButton.setOnAction(e -> loadCsvData());
-        loadBox.getChildren().addAll(loadCsvButton);
+        Button insertRecords = new Button("Insert Records");
+        insertRecords.setOnAction(e -> Insertions());
+        loadBox.getChildren().addAll(loadCsvButton, insertRecords);
         panel.getChildren().add(loadBox);
-
 
         return panel;
     }
@@ -212,6 +214,71 @@ public class JavaFXApp extends Application {
     }
 
 
+    private void Insertions(){
+        try {
+            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
+            loadedRecords = CSVLoader.loadRecords(csvPath);
+            log("Loaded " + loadedRecords.size() + " records from CSV.");
+
+            int[] recordNumbers = {27,14,22};
+
+            for (int recordNumber : recordNumbers) {
+                if (recordNumber >= loadedRecords.size()) {
+                    log("⚠️ Skipping index " + recordNumber + " (only " + loadedRecords.size() + " records loaded)");
+                    continue;
+                }
+                Record r = loadedRecords.get(recordNumber);
+                int pointer = fileSystem.insertRecord(r);
+                String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+                int key = Integer.parseInt(numericPart);
+                tree.insert(key, pointer);
+                log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+            }
+
+
+            fileSystem.printBlocks();
+            drawTree();
+        } catch (IOException e) {
+            showAlert("File Error", "Could not read CSV: " + e.getMessage());
+        } catch (Exception e) {
+            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+        }
+
+    }
+
+
+    private void Deletions(){
+        try {
+            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
+            loadedRecords = CSVLoader.loadRecords(csvPath);
+            log("Loaded " + loadedRecords.size() + " records from CSV.");
+
+            int[] recordNumbers = {11,6,3};
+
+            for (int recordNumber : recordNumbers) {
+                if (recordNumber >= loadedRecords.size()) {
+                    log("⚠️ Skipping index " + recordNumber + " (only " + loadedRecords.size() + " records loaded)");
+                    continue;
+                }
+                Record r = loadedRecords.get(recordNumber);
+                int pointer = fileSystem.insertRecord(r);
+                String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+                int key = Integer.parseInt(numericPart);
+                //tree.delete(key, pointer);
+                log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+            }
+
+
+            fileSystem.printBlocks();
+            drawTree();
+        } catch (IOException e) {
+            showAlert("File Error", "Could not read CSV: " + e.getMessage());
+        } catch (Exception e) {
+            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+        }
+
+
+    }
 
 
     private void clearTree() {
