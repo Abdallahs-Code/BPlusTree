@@ -149,7 +149,7 @@ public class JavaFXApp extends Application {
         loadCsvButton.setOnAction(e -> loadCsvData());
         Button insertRecords = new Button("Insert Records");
         insertRecords.setOnAction(e -> Insertions());
-        Button deleteRecords = new Button("Insert Records");
+        Button deleteRecords = new Button("Delete Records");
         insertRecords.setOnAction(e ->Deletions());
         loadBox.getChildren().addAll(loadCsvButton, insertRecords,deleteRecords);
         panel.getChildren().add(loadBox);
