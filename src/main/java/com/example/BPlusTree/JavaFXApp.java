@@ -140,7 +140,8 @@ public class JavaFXApp extends Application {
         clearButton.setOnAction(e -> clearTree());
         bulkBox.getChildren().addAll(bulkLabel, bulkInput, bulkButton, clearButton);
 
-        panel.getChildren().addAll(titleLabel, orderBox, insertBox, bulkBox);
+        // Add deleteBox here so the simple delete button appears in the main panel
+        panel.getChildren().addAll(titleLabel, orderBox, insertBox, deleteBox, bulkBox);
 
 
         HBox loadBox = new HBox(10);
@@ -150,7 +151,7 @@ public class JavaFXApp extends Application {
         Button insertRecords = new Button("Insert Records");
         insertRecords.setOnAction(e -> Insertions());
         Button deleteRecords = new Button("Delete Records");
-        deleteRecords.setOnAction(e ->Deletions());
+        deleteRecords.setOnAction(e -> Deletions());
 
         TextField ssnDeleteInput = new TextField();
         ssnDeleteInput.setPromptText("Enter SSN");
@@ -159,21 +160,16 @@ public class JavaFXApp extends Application {
         deleteBySSNButton.setOnAction(e -> deleteRecordsBySSNUI(ssnDeleteInput.getText()));
 
         TextField ssnInsertInput = new TextField();
-        ssnDeleteInput.setPromptText("Enter SSN");
-        ssnDeleteInput.setPrefWidth(250);
+        ssnInsertInput.setPromptText("Enter Line Number");
+        ssnInsertInput.setPrefWidth(250);
         Button insertbySSNButton = new Button("Insert by Line Number in CSV");
         insertbySSNButton.setOnAction(e -> insertRecordsByNumberUI(ssnInsertInput.getText()));
 
-
-
-        loadBox.getChildren().addAll(loadCsvButton, insertRecords, deleteRecords, ssnDeleteInput, deleteBySSNButton,ssnInsertInput,insertbySSNButton);
+        loadBox.getChildren().addAll(loadCsvButton, insertRecords, deleteRecords, ssnDeleteInput, deleteBySSNButton, ssnInsertInput, insertbySSNButton);
         panel.getChildren().add(loadBox);
-
-
 
         return panel;
     }
-
     private void insertRecordsByNumberUI(String text) {
         try {
             int recordNumber = Integer.parseInt(text);
@@ -255,19 +251,44 @@ public class JavaFXApp extends Application {
     private void insertKey() {
         try {
             int key = Integer.parseInt(keyInput.getText());
-            boolean success = tree.insert(key, -1);
+
+            // Check for duplicate
+            if (tree.contains(key)) {
+                showAlert("Duplicate Key", key + " already exists");
+                keyInput.clear();
+                return;
+            }
+
+            Record dummyRecord = new Record(
+                    "Manual Entry",           // NAME
+                    String.valueOf(key),      // SSN (use the key as SSN)
+                    "N/A",                    // DEPARTMENTCODE
+                    "N/A",                    // ADDRESS
+                    "N/A",                    // PHONE
+                    "N/A",                    // BIRTHDATE
+                    'U',                      // SEX
+                    "N/A",                    // JOBCODE
+                    0                       // SALARY
+            );
+
+            int pointer = fileSystem.insertRecord(dummyRecord);
+
+            boolean success = tree.insert(key, pointer);
+
             if (success) {
-                log("Inserted key: " + key);
+                log("✓ Inserted key: " + key + " (ptr=" + pointer + ")");
+                fileSystem.printBlocks();
                 drawTree();
+            } else {
+                showAlert("Error", "Failed to insert key " + key);
             }
-            else {
-                showAlert("Invalid Input", key + " already exists");
-            }
+
             keyInput.clear();
         } catch (NumberFormatException e) {
             showAlert("Invalid Input", "Please enter valid number for key");
         } catch (Exception e) {
             showAlert("Error", "Failed to insert: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     private void deleteKey(String input) {
@@ -278,10 +299,24 @@ public class JavaFXApp extends Application {
             }
 
             int key = Integer.parseInt(input.trim());
+
+            if (!tree.contains(key)) {
+                showAlert("Key Not Found", "Key " + key + " does not exist in the tree.");
+                deleteInput.clear();
+                return;
+            }
+
             int recordPointer = tree.delete(key);
 
             if (recordPointer != -1) {
-                log("Deleted key: " + key + " (pointer=" + recordPointer + ")");
+                if (recordPointer >= 0) {
+                    boolean deletedFromFile = fileSystem.deleteRecordByPointer(recordPointer);
+                    log("✓ Deleted key: " + key + " (ptr=" + recordPointer +
+                            (deletedFromFile ? ", removed from file)" : ", file delete failed)"));
+                } else {
+                    log("✓ Deleted key: " + key + " (tree only, no file record)");
+                }
+                fileSystem.printBlocks();
                 drawTree();
             } else {
                 showAlert("Key Not Found", "Key " + key + " does not exist in the tree.");
@@ -291,9 +326,9 @@ public class JavaFXApp extends Application {
             showAlert("Invalid Input", "Please enter a valid number for key");
         } catch (Exception e) {
             showAlert("Error", "Failed to delete: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
 
     private void bulkInsert(String input) {
         try {

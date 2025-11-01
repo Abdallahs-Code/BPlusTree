@@ -41,7 +41,7 @@ public class FileSystem {
                     " at Block " + blockIndex + ", Slot " + slotIndex);
             return true;
         }else{
-            System.out.println("Oopsie");
+            System.out.println("lol");
         }
         return false;
     }
