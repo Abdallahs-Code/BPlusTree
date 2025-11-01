@@ -3,6 +3,8 @@ package com.example.BPlusTree.Storage;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.example.BPlusTree.Storage.Block.BLOCK_SIZE;
+
 public class FileSystem {
     private final List<Block> blocks = new ArrayList<>();
 
@@ -11,28 +13,38 @@ public class FileSystem {
             Block block = blocks.get(i);
             if (block.addRecord(record)) {
                 int recordIndex = block.getRecords().size() - 1;
-                return (i * (Block.BLOCK_SIZE / Block.RECORD_SIZE)) + recordIndex;
+                return (i * (BLOCK_SIZE / Block.RECORD_SIZE)) + recordIndex;
             }
         }
         Block newBlock = new Block();
         newBlock.addRecord(record);
         blocks.add(newBlock);
         int blockIndex = blocks.size() - 1;
-        return (blockIndex * (Block.BLOCK_SIZE / Block.RECORD_SIZE));
+        return (blockIndex * (BLOCK_SIZE / Block.RECORD_SIZE));
     }
 
-    public boolean deleteRecordsBySSN(String ssn) {
-        for (Block block : blocks) {
-            for (Record record : block.getRecords()) {
-                if (record.getSSN().equals(ssn) && !record.isDeleted()) {
-                    record.markDeleted();
-                    return true;
-                }
-            }
+    public boolean deleteRecordByPointer(int pointer) {
+        if (pointer < 0) return false;
+
+        int blockIndex = pointer / 4;  // 4 records per block
+        int slotIndex = pointer % 4;
+
+        if (blockIndex >= blocks.size()) return false;
+
+        Block block = blocks.get(blockIndex);
+        if (slotIndex >= block.getRecords().size()) return false;
+
+        Record record = block.getRecords().get(slotIndex);
+        if (!record.isDeleted()) {
+            record.markDeleted();
+            System.out.println("✓ Deleted pointer " + pointer +
+                    " at Block " + blockIndex + ", Slot " + slotIndex);
+            return true;
+        }else{
+            System.out.println("Oopsie");
         }
         return false;
     }
-
 
     public void printBlocks() {
         System.out.println("---- File Blocks ----");

@@ -307,14 +307,21 @@ public class BPlusTree {
         ssns.add(key);
         return true;
     }
-    
-    public boolean delete(int key) {
+
+    public int delete(int key) {
         LeafNode leaf = findLeafNode(key);
-        if (!ssns.contains(key)) return false;
+        if (!ssns.contains(key)) return -1; // Return -1 if not found
+
+        int keyIndex = leaf.getKeys().indexOf(key);
+        int recordPointer = leaf.getRecordPointers().get(keyIndex);
+
         leaf.removeKey(key);
         ssns.remove(key);
         handleDeletion(leaf);
-        return true;
+        return recordPointer; // Return the pointer instead of boolean
     }
-    
+
+    public boolean contains(int key) {
+        return ssns.contains(key);
+    }
 }

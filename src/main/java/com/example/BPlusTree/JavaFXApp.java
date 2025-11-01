@@ -175,50 +175,66 @@ public class JavaFXApp extends Application {
     }
 
     private void insertRecordsByNumberUI(String text) {
-        int recordNumber  = Integer.parseInt(text);
-        Record r = this.loadedRecords.get(recordNumber-2); //fix -1 index problem for header
-        int pointer = fileSystem.insertRecord(r);
-        String numericPart = r.getSSN().replaceAll("[^0-9]", "");
-        int key = Integer.parseInt(numericPart);
-        tree.insert(key, pointer);
-        log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+        try {
+            int recordNumber = Integer.parseInt(text);
+            Record r = this.loadedRecords.get(recordNumber - 2); // fix -1 index problem for header
 
+            String numericPart = r.getSSN().replaceAll("[^0-9]", "");
+            int key = Integer.parseInt(numericPart);
 
-        fileSystem.printBlocks();
-        drawTree();
+            if (tree.contains(key)) {
+                log("Record with SSN=" + r.getSSN() + " already exists!");
+                showAlert("Duplicate Record", "SSN " + r.getSSN() + " is already in the system.");
+                return;
+            }
+            int pointer = fileSystem.insertRecord(r);
+            tree.insert(key, pointer);
+            log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
+
+            fileSystem.printBlocks();
+            drawTree();
+
+        } catch (NumberFormatException e) {
+            showAlert("Invalid Input", "Please enter a valid record number");
+        } catch (IndexOutOfBoundsException e) {
+            showAlert("Invalid Record", "Record number out of range");
+        }
     }
 
     private void deleteRecordsBySSNUI(String input) {
-
         log("Current FileSystem contents before deletion:");
-        int i =0;
+        int i = 0;
         for (Block b : fileSystem.getBlocks()) {
             for (Record r : b.getRecords()) {
-                log("Block " + i +" contains SSN=" + r.getSSN());
-                i+=1;
+                log("Block " + i + " contains SSN=" + r.getSSN());
+                i += 1;
             }
         }
 
         try {
             String ssn = input.trim();
-            // Delete from file system (mark deleted)
-            boolean deletedFromFile = fileSystem.deleteRecordsBySSN(ssn);
             String numericPart = ssn.replaceAll("[^0-9]", "");
             int key = Integer.parseInt(numericPart);
 
-            if (deletedFromFile) {
-                boolean deletedFromTree = tree.delete(key);
-                log("Deleted SSN=" + ssn + (deletedFromTree ? " (removed from tree)" : " (not found in tree)"));
+            // Delete from tree and get the record pointer
+            int recordPointer = tree.delete(key);
+
+            if (recordPointer != -1) {
+                // Use the pointer to directly delete from file system
+                boolean deletedFromFile = fileSystem.deleteRecordByPointer(recordPointer);
+                log("Deleted SSN=" + ssn + " (pointer=" + recordPointer +
+                        (deletedFromFile ? ", removed from file)" : ", file delete failed)"));
             } else {
-                log("SSN " + ssn + " not found in file system.");
+                log("SSN " + ssn + " not found in tree.");
             }
 
-        fileSystem.printBlocks();
-        drawTree();
-    } catch (Exception e) {
-        showAlert("Error", "Failed to process CSV: " + e.getMessage());
+            fileSystem.printBlocks();
+            drawTree();
+        } catch (Exception e) {
+            showAlert("Error", "Failed to process deletion: " + e.getMessage());
+        }
     }
-    }
+
 
     private void createNewTree() {
         try {
@@ -262,10 +278,10 @@ public class JavaFXApp extends Application {
             }
 
             int key = Integer.parseInt(input.trim());
-            boolean success = tree.delete(key);
+            int recordPointer = tree.delete(key);
 
-            if (success) {
-                log("Deleted key: " + key);
+            if (recordPointer != -1) {
+                log("Deleted key: " + key + " (pointer=" + recordPointer + ")");
                 drawTree();
             } else {
                 showAlert("Key Not Found", "Key " + key + " does not exist in the tree.");
@@ -342,18 +358,21 @@ public class JavaFXApp extends Application {
     }
 
 
-    private void Insertions(){
+    private void Insertions() {
         try {
-            String csvPath = "src\\main\\java\\com\\example\\BPlusTree\\data\\EMPLOYEE.csv";
-
-
-            int[] OriginalLineNumbers = {27,14,22};
+            int[] OriginalLineNumbers = {27, 14, 22};
 
             for (int recordNumber : OriginalLineNumbers) {
-                Record r = this.loadedRecords.get(recordNumber-2); //fix -1 index problem for header
-                int pointer = fileSystem.insertRecord(r);
+                Record r = this.loadedRecords.get(recordNumber - 2); // fix -1 index problem for header
                 String numericPart = r.getSSN().replaceAll("[^0-9]", "");
                 int key = Integer.parseInt(numericPart);
+
+                if (tree.contains(key)) {
+                    log("Record with SSN=" + r.getSSN() + " already exists! Skipping...");
+                    continue;
+                }
+
+                int pointer = fileSystem.insertRecord(r);
                 tree.insert(key, pointer);
                 log("Inserted record SSN=" + r.getSSN() + " (ptr=" + pointer + ")");
             }
@@ -361,37 +380,48 @@ public class JavaFXApp extends Application {
             fileSystem.printBlocks();
             drawTree();
         } catch (Exception e) {
-            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+            showAlert("Error", "Failed to process insertions: " + e.getMessage());
+            e.printStackTrace();
         }
-
     }
-
 
     private void Deletions() {
         try {
-            int[] recordNumbers = {11,6,3};
+            int[] recordNumbers = {11, 6, 3};
+
             for (int recordNumber : recordNumbers) {
                 Record r = loadedRecords.get(recordNumber - 2);
                 String ssn = r.getSSN();
-                // Delete from file system (mark deleted)
-                boolean deletedFromFile = fileSystem.deleteRecordsBySSN(ssn);
                 String numericPart = ssn.replaceAll("[^0-9]", "");
                 int key = Integer.parseInt(numericPart);
+                if (!tree.contains(key)) {
+                    log("✗ SSN " + ssn + " not found in tree. Skipping...");
+                    continue;
+                }
 
-                if (deletedFromFile) {
-                    boolean deletedFromTree = tree.delete(key);
-                    log("Deleted SSN=" + ssn + (deletedFromTree ? " (removed from tree)" : " (not found in tree)"));
+                int recordPointer = tree.delete(key);
+
+                if (recordPointer != -1) {
+
+                    boolean deletedFromFile = fileSystem.deleteRecordByPointer(recordPointer);
+
+                    if (deletedFromFile) {
+                        log("✓ Deleted SSN=" + ssn + " (ptr=" + recordPointer + ")");
+                    } else {
+                        log("✗ Failed to delete SSN=" + ssn + " from file system");
+                    }
                 } else {
-                    log("SSN " + ssn + " not found in file system.");
+                    log("✗ SSN " + ssn + " not found in tree (unexpected error)");
                 }
             }
+
             fileSystem.printBlocks();
             drawTree();
         } catch (Exception e) {
-            showAlert("Error", "Failed to process CSV: " + e.getMessage());
+            showAlert("Error", "Failed to process deletions: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
 
     private void clearTree() {
         int order = tree.getOrder();
